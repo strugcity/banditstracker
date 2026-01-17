@@ -338,18 +338,33 @@ export async function deleteExerciseSet(logId: string): Promise<void> {
  * Get all exercise logs for a workout session
  *
  * @param sessionId - Workout session UUID
- * @returns Array of exercise logs ordered by set number
+ * @returns Array of exercise logs with exercise and card details, ordered by set number
  * @throws Error if query fails
  */
-export async function getSessionLogs(sessionId: string): Promise<ExerciseLog[]> {
+export async function getSessionLogs(
+  sessionId: string
+): Promise<
+  (ExerciseLog & {
+    workout_exercise: {
+      exercise_card: ExerciseCard
+      superset_group: string | null
+    }
+  })[]
+> {
   const { data, error } = await supabase
     .from('exercise_logs')
-    .select('*')
+    .select(`
+      *,
+      workout_exercise:workout_exercises(
+        superset_group,
+        exercise_card:exercise_cards(*)
+      )
+    `)
     .eq('workout_session_id', sessionId)
     .order('set_number', { ascending: true })
 
   if (error) throw error
-  return data
+  return data as any
 }
 
 // ============================================================================
