@@ -13,8 +13,12 @@
 
 /* eslint-disable no-console */
 
+import { config } from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../src/lib/types';
+
+// Load environment variables from .env file
+config();
 
 // ANSI color codes for terminal output
 const colors = {
