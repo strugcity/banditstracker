@@ -5,3 +5,4 @@
  */
 
 export { HomePage } from './HomePage'
+export { WorkoutPage } from './WorkoutPage'
