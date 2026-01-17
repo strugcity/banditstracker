@@ -11,6 +11,8 @@
  *   npx tsx scripts/validate-types.ts
  */
 
+/* eslint-disable no-console */
+
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../src/lib/types';
 
