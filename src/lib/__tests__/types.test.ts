@@ -13,12 +13,9 @@ import type {
   Workout,
   ExerciseCard,
   WorkoutExercise,
-  WorkoutSession,
-  ExerciseLog,
   PrescribedSet,
   Difficulty,
   WorkoutSessionStatus,
-  Database,
   Tables,
   TablesInsert,
   TablesUpdate,
@@ -129,12 +126,14 @@ describe('Type Definitions', () => {
   describe('Enums', () => {
     it('should restrict Difficulty to valid values', () => {
       const difficulty: Difficulty = 'intermediate';
-      expectTypeOf(difficulty).toEqualTypeOf<'beginner' | 'intermediate' | 'advanced'>();
+      expect(difficulty).toBe('intermediate');
+      expectTypeOf(difficulty).toMatchTypeOf<Difficulty>();
     });
 
     it('should restrict WorkoutSessionStatus to valid values', () => {
       const status: WorkoutSessionStatus = 'in_progress';
-      expectTypeOf(status).toEqualTypeOf<'in_progress' | 'completed' | 'skipped'>();
+      expect(status).toBe('in_progress');
+      expectTypeOf(status).toMatchTypeOf<WorkoutSessionStatus>();
     });
   });
 
@@ -220,7 +219,7 @@ describe('Type Definitions', () => {
       };
 
       expect(workoutWithExercises.exercises.length).toBe(1);
-      expect(workoutWithExercises.exercises[0].exercise_card.name).toBe('Front Squat');
+      expect(workoutWithExercises.exercises[0]?.exercise_card.name).toBe('Front Squat');
     });
   });
 

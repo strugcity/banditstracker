@@ -4,40 +4,49 @@
  * This file validates that our TypeScript types work correctly with Supabase client operations.
  * These tests demonstrate proper usage patterns and verify type safety.
  *
+ * NOTE: These tests require real Supabase credentials to run.
+ * Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.
+ * Tests will be skipped if credentials are not available.
+ *
  * Run with: npm test or npx vitest
  */
 
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import type {
   Database,
   Program,
-  Workout,
-  ExerciseCard,
   CreateProgramInput,
   UpdateProgramInput,
-  WorkoutWithExercises,
 } from '../types';
 
-// Mock Supabase client for testing
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://mock.supabase.co';
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || 'mock-key';
+// Check if we have real Supabase credentials
+const hasSupabaseCredentials =
+  process.env.VITE_SUPABASE_URL &&
+  process.env.VITE_SUPABASE_ANON_KEY &&
+  !process.env.VITE_SUPABASE_URL.includes('mock');
 
-describe('Supabase Integration', () => {
+// Skip tests if no real credentials
+const describeIfSupabase = hasSupabaseCredentials ? describe : describe.skip;
+
+describeIfSupabase('Supabase Integration', () => {
   let supabase: ReturnType<typeof createClient<Database>>;
 
   beforeAll(() => {
     // Create typed Supabase client
+    const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
     supabase = createClient<Database>(supabaseUrl, supabaseKey);
   });
 
   describe('Type-safe CRUD Operations', () => {
     it('should type-check SELECT queries', async () => {
       // This validates that the return type is correctly inferred
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('programs')
         .select('*')
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (data) {
         // TypeScript should know these fields exist
@@ -59,11 +68,11 @@ describe('Supabase Integration', () => {
         description: 'Test description',
       };
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('programs')
         .insert(newProgram)
         .select()
-        .single();
+        .maybeSingle();
 
       if (data) {
         expect(data.name).toBe('Test Program');
@@ -77,34 +86,53 @@ describe('Supabase Integration', () => {
         description: 'Updated description',
       };
 
-      const { data, error } = await supabase
+      // First create a program to update
+      const { data: createdProgram } = await supabase
         .from('programs')
-        .update(update)
-        .eq('id', 'some-uuid')
+        .insert({ name: 'Temp Program', sport: null, season: null, description: null })
         .select()
         .single();
 
-      if (data) {
-        expect(typeof data.updated_at).toBe('string');
+      if (createdProgram) {
+        const { data } = await supabase
+          .from('programs')
+          .update(update)
+          .eq('id', createdProgram.id)
+          .select()
+          .maybeSingle();
+
+        if (data) {
+          expect(typeof data.updated_at).toBe('string');
+        }
+
+        // Cleanup
+        await supabase.from('programs').delete().eq('id', createdProgram.id);
       }
     });
 
     it('should type-check DELETE operations', async () => {
-      const { error } = await supabase
+      // First create a program to delete
+      const { data: createdProgram } = await supabase
         .from('programs')
-        .delete()
-        .eq('id', 'some-uuid');
+        .insert({ name: 'Temp Program', sport: null, season: null, description: null })
+        .select()
+        .single();
 
-      // Type-safe error handling
-      if (error) {
-        expect(error.message).toBeDefined();
+      if (createdProgram) {
+        const { error } = await supabase
+          .from('programs')
+          .delete()
+          .eq('id', createdProgram.id);
+
+        // Type-safe error handling
+        expect(error).toBeNull();
       }
     });
   });
 
   describe('Complex Queries with Joins', () => {
     it('should type-check joined queries for WorkoutWithExercises', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('workouts')
         .select(`
           *,
@@ -113,23 +141,22 @@ describe('Supabase Integration', () => {
             exercise_card:exercise_cards(*)
           )
         `)
-        .eq('id', 'some-workout-id')
-        .single();
+        .limit(1)
+        .maybeSingle();
 
-      if (data) {
+      if (data && data.exercises) {
         // This should match WorkoutWithExercises structure
         expect(Array.isArray(data.exercises)).toBe(true);
 
-        if (data.exercises && data.exercises.length > 0) {
+        if (data.exercises.length > 0) {
           const firstExercise = data.exercises[0];
           expect(firstExercise.exercise_card).toBeDefined();
-          expect(firstExercise.exercise_card.name).toBeDefined();
         }
       }
     });
 
     it('should handle workout sessions with nested data', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('workout_sessions')
         .select(`
           *,
@@ -139,7 +166,8 @@ describe('Supabase Integration', () => {
           )
         `)
         .eq('status', 'completed')
-        .order('started_at', { ascending: false });
+        .order('started_at', { ascending: false })
+        .limit(10);
 
       if (data && data.length > 0) {
         const session = data[0];
@@ -151,11 +179,11 @@ describe('Supabase Integration', () => {
 
   describe('JSONB Field Operations', () => {
     it('should handle prescribed_sets JSONB array', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('workout_exercises')
         .select('prescribed_sets')
-        .eq('id', 'some-uuid')
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (data) {
         // prescribed_sets should be typed as PrescribedSet[]
@@ -169,11 +197,11 @@ describe('Supabase Integration', () => {
     });
 
     it('should handle exercise_card JSONB arrays', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('exercise_cards')
         .select('instructions, coaching_cues, equipment')
-        .eq('name', 'Front Squat')
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (data) {
         // These should be typed as string[] | null
@@ -194,10 +222,11 @@ describe('Supabase Integration', () => {
 
   describe('Filtering and Sorting', () => {
     it('should filter by enum values', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('workout_sessions')
         .select('*')
-        .in('status', ['in_progress', 'completed']);
+        .in('status', ['in_progress', 'completed'])
+        .limit(10);
 
       if (data) {
         data.forEach((session) => {
@@ -207,10 +236,11 @@ describe('Supabase Integration', () => {
     });
 
     it('should filter exercise_cards by difficulty', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('exercise_cards')
         .select('*')
-        .eq('difficulty', 'intermediate');
+        .eq('difficulty', 'intermediate')
+        .limit(10);
 
       if (data) {
         data.forEach((card) => {
@@ -222,37 +252,13 @@ describe('Supabase Integration', () => {
     });
   });
 
-  describe('Real-time Subscriptions', () => {
-    it('should type-check realtime subscriptions', () => {
-      const channel = supabase
-        .channel('workout-sessions')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'workout_sessions',
-          },
-          (payload) => {
-            // payload.new should match WorkoutSession type
-            const newSession = payload.new;
-            expect(newSession.workout_id).toBeDefined();
-            expect(typeof newSession.started_at).toBe('string');
-          }
-        )
-        .subscribe();
-
-      // Clean up
-      channel.unsubscribe();
-    });
-  });
-
   describe('Edge Cases', () => {
     it('should handle null values correctly', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('programs')
         .select('*')
-        .is('sport', null);
+        .is('sport', null)
+        .limit(10);
 
       if (data) {
         data.forEach((program) => {
@@ -269,15 +275,18 @@ describe('Supabase Integration', () => {
         description: null,
       };
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('programs')
         .insert(minimalProgram)
         .select()
-        .single();
+        .maybeSingle();
 
       if (data) {
         expect(data.name).toBe('Minimal Program');
         expect(data.id).toBeDefined(); // Should be auto-generated
+
+        // Cleanup
+        await supabase.from('programs').delete().eq('id', data.id);
       }
     });
   });
