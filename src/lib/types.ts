@@ -247,6 +247,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: Partial<Omit<Program, 'id' | 'created_at' | 'updated_at'>>;
+        Relationships: [];
       };
       workouts: {
         Row: Workout;
@@ -255,6 +256,14 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Omit<Workout, 'id' | 'created_at'>>;
+        Relationships: [
+          {
+            foreignKeyName: 'workouts_program_id_fkey';
+            columns: ['program_id'];
+            referencedRelation: 'programs';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       exercise_cards: {
         Row: ExerciseCard;
@@ -269,6 +278,7 @@ export interface Database {
           default_rest_seconds?: number;
         };
         Update: Partial<Omit<ExerciseCard, 'id' | 'created_at' | 'updated_at'>>;
+        Relationships: [];
       };
       workout_exercises: {
         Row: WorkoutExercise;
@@ -277,6 +287,20 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Omit<WorkoutExercise, 'id' | 'created_at'>>;
+        Relationships: [
+          {
+            foreignKeyName: 'workout_exercises_workout_id_fkey';
+            columns: ['workout_id'];
+            referencedRelation: 'workouts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'workout_exercises_exercise_card_id_fkey';
+            columns: ['exercise_card_id'];
+            referencedRelation: 'exercise_cards';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       workout_sessions: {
         Row: WorkoutSession;
@@ -286,6 +310,14 @@ export interface Database {
           status?: WorkoutSessionStatus;
         };
         Update: Partial<Omit<WorkoutSession, 'id' | 'created_at'>>;
+        Relationships: [
+          {
+            foreignKeyName: 'workout_sessions_workout_id_fkey';
+            columns: ['workout_id'];
+            referencedRelation: 'workouts';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       exercise_logs: {
         Row: ExerciseLog;
@@ -295,11 +327,33 @@ export interface Database {
           completed?: boolean;
         };
         Update: Partial<Omit<ExerciseLog, 'id' | 'logged_at'>>;
+        Relationships: [
+          {
+            foreignKeyName: 'exercise_logs_workout_session_id_fkey';
+            columns: ['workout_session_id'];
+            referencedRelation: 'workout_sessions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'exercise_logs_workout_exercise_id_fkey';
+            columns: ['workout_exercise_id'];
+            referencedRelation: 'workout_exercises';
+            referencedColumns: ['id'];
+          }
+        ];
       };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      difficulty: Difficulty;
+      workout_session_status: WorkoutSessionStatus;
+      exercise_type: ExerciseType;
+    };
   };
 }
 
