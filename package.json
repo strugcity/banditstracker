@@ -13,6 +13,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
+    "test-connection": "tsx scripts/test-supabase-connection.ts",
     "validate-types": "tsx scripts/validate-types.ts",
     "qa": "npm run type-check && npm run test:run && npm run lint"
   },
