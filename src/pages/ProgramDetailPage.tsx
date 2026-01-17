@@ -1,9 +1,8 @@
 /**
- * Home Page Component
+ * Program Detail Page Component
  *
- * Default landing page where athletes select their workout for the day.
+ * Shows workouts for a specific program grouped by week.
  * Features:
- * - Auto-selects first program on mount
  * - Displays workouts grouped by week
  * - Highlights today's workout
  * - Collapsible week accordions
@@ -12,8 +11,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { getAllPrograms, getWorkoutsByProgram } from '../lib/queries'
+import { useNavigate, useParams } from 'react-router-dom'
+import { getProgramById, getWorkoutsByProgram } from '../lib/queries'
 import type { Workout } from '../lib/types'
 import { Button, Card, EmptyState, Spinner } from '../components/common'
 
@@ -157,44 +156,35 @@ function WeekAccordion({
 }
 
 /**
- * Home Page Component
+ * Program Detail Page Component
  */
-export function HomePage() {
+export function ProgramDetailPage() {
   const navigate = useNavigate()
-  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null)
+  const { programId } = useParams<{ programId: string }>()
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set())
   const currentWeekRef = useRef<HTMLDivElement>(null)
   const today = getTodayDayOfWeek()
 
-  // Fetch all programs
+  // Fetch program details
   const {
-    data: programs,
-    isLoading: programsLoading,
-    error: programsError,
+    data: program,
+    isLoading: programLoading,
+    error: programError,
   } = useQuery({
-    queryKey: ['programs'],
-    queryFn: getAllPrograms,
+    queryKey: ['program', programId],
+    queryFn: () => getProgramById(programId!),
+    enabled: !!programId,
   })
 
-  // Auto-select first program on mount
-  useEffect(() => {
-    if (programs && programs.length > 0 && !selectedProgramId) {
-      const firstProgram = programs[0]
-      if (firstProgram) {
-        setSelectedProgramId(firstProgram.id)
-      }
-    }
-  }, [programs, selectedProgramId])
-
-  // Fetch workouts for selected program
+  // Fetch workouts for program
   const {
     data: workouts,
     isLoading: workoutsLoading,
     error: workoutsError,
   } = useQuery({
-    queryKey: ['workouts', selectedProgramId],
-    queryFn: () => getWorkoutsByProgram(selectedProgramId!),
-    enabled: !!selectedProgramId,
+    queryKey: ['workouts', programId],
+    queryFn: () => getWorkoutsByProgram(programId!),
+    enabled: !!programId,
   })
 
   // Group workouts by week
@@ -242,68 +232,38 @@ export function HomePage() {
     navigate(`/workout/${workoutId}`)
   }
 
-  // Handle program change
-  const handleProgramChange = () => {
-    // TODO: In future, show program selector modal
-    // For now, just cycling through programs if multiple exist
-    if (programs && programs.length > 1) {
-      const currentIndex = programs.findIndex((p) => p.id === selectedProgramId)
-      const nextIndex = (currentIndex + 1) % programs.length
-      const nextProgram = programs[nextIndex]
-      if (nextProgram) {
-        setSelectedProgramId(nextProgram.id)
-      }
-    }
-  }
-
-  // Get selected program details
-  const selectedProgram = programs?.find((p) => p.id === selectedProgramId)
-
   // Loading state
-  if (programsLoading) {
+  if (programLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Spinner size="lg" />
-          <p className="mt-4 text-gray-600">Loading programs...</p>
+          <p className="mt-4 text-gray-600">Loading program...</p>
         </div>
       </div>
     )
   }
 
-  // Error state - programs failed to load
-  if (programsError) {
+  // Error state - program failed to load
+  if (programError || !program) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <Card className="max-w-md w-full">
           <div className="text-center">
             <div className="text-red-500 text-5xl mb-4">⚠️</div>
             <h1 className="text-xl font-bold text-gray-900 mb-2">
-              Failed to Load Programs
+              Program Not Found
             </h1>
             <p className="text-gray-600 mb-4">
-              {programsError instanceof Error
-                ? programsError.message
-                : 'An unexpected error occurred'}
+              {programError instanceof Error
+                ? programError.message
+                : 'This program could not be found'}
             </p>
-            <Button onClick={() => window.location.reload()} variant="primary">
-              Retry
+            <Button onClick={() => navigate('/programs')} variant="primary">
+              View All Programs
             </Button>
           </div>
         </Card>
-      </div>
-    )
-  }
-
-  // No programs found
-  if (!programs || programs.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <EmptyState
-          title="No Programs Found"
-          message="There are no training programs available. Contact your coach to get started."
-          icon="📋"
-        />
       </div>
     )
   }
@@ -337,11 +297,11 @@ export function HomePage() {
         <div className="bg-white border-b border-gray-200 px-4 py-4">
           <div className="max-w-2xl mx-auto">
             <h1 className="text-2xl font-bold text-gray-900">
-              {selectedProgram?.name}
+              {program?.name}
             </h1>
-            {selectedProgram?.sport && selectedProgram?.season && (
+            {program?.sport && program?.season && (
               <p className="text-sm text-gray-600">
-                {selectedProgram.sport} • {selectedProgram.season}
+                {program.sport} • {program.season}
               </p>
             )}
           </div>
@@ -379,23 +339,14 @@ export function HomePage() {
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {selectedProgram?.name}
+                {program?.name}
               </h1>
-              {selectedProgram?.sport && selectedProgram?.season && (
+              {program?.sport && program?.season && (
                 <p className="text-sm text-gray-600">
-                  {selectedProgram.sport} • {selectedProgram.season}
+                  {program.sport} • {program.season}
                 </p>
               )}
             </div>
-            {programs.length > 1 && (
-              <Button
-                onClick={handleProgramChange}
-                variant="secondary"
-                size="sm"
-              >
-                ← Back
-              </Button>
-            )}
           </div>
         </div>
 
@@ -420,24 +371,14 @@ export function HomePage() {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">
-              {selectedProgram?.name}
+              {program?.name}
             </h1>
-            {selectedProgram?.sport && selectedProgram?.season && (
+            {program?.sport && program?.season && (
               <p className="text-sm text-gray-600">
-                {selectedProgram.sport} • {selectedProgram.season}
+                {program.sport} • {program.season}
               </p>
             )}
           </div>
-          {programs.length > 1 && (
-            <Button
-              onClick={handleProgramChange}
-              variant="secondary"
-              size="sm"
-              aria-label="Switch to another program"
-            >
-              ← Back
-            </Button>
-          )}
         </div>
       </div>
 

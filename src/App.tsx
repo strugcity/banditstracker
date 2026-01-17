@@ -10,15 +10,16 @@ import {
   EmptyState,
 } from '@/components/common'
 import { Layout } from '@/components/layout'
-import { HomePage, WorkoutPage, HistoryPage, ProgramsPage, ExercisesPage } from '@/pages'
+import { DashboardPage, ProgramDetailPage, WorkoutPage, HistoryPage, ProgramsPage, ExercisesPage } from '@/pages'
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout><HomePage /></Layout>} />
+      <Route path="/" element={<Layout><DashboardPage /></Layout>} />
+      <Route path="/programs" element={<Layout><ProgramsPage /></Layout>} />
+      <Route path="/programs/:programId" element={<Layout><ProgramDetailPage /></Layout>} />
       <Route path="/workout/:workoutId" element={<Layout><WorkoutPage /></Layout>} />
       <Route path="/history" element={<Layout><HistoryPage /></Layout>} />
-      <Route path="/programs" element={<Layout><ProgramsPage /></Layout>} />
       <Route path="/exercises" element={<Layout><ExercisesPage /></Layout>} />
       <Route path="/components-test" element={<Layout><ComponentsTestPage /></Layout>} />
     </Routes>

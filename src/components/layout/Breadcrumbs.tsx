@@ -45,25 +45,28 @@ export function Breadcrumbs() {
   ]
 
   // Add dynamic breadcrumbs based on route
-  if (pathSegments[0] === 'workout' && workout) {
+  if (pathSegments[0] === 'programs') {
+    breadcrumbs.push({
+      label: 'Programs',
+      path: '/programs',
+    })
+
+    // If viewing specific program
+    if (pathSegments[1] && program) {
+      breadcrumbs.push({
+        label: program.name,
+        path: `/programs/${program.id}`,
+      })
+    }
+  } else if (pathSegments[0] === 'workout' && workout) {
     breadcrumbs.push({
       label: workout.name,
       path: `/workout/${workout.id}`,
-    })
-  } else if (pathSegments[0] === 'program' && program) {
-    breadcrumbs.push({
-      label: program.name,
-      path: `/program/${program.id}`,
     })
   } else if (pathSegments[0] === 'history') {
     breadcrumbs.push({
       label: 'History',
       path: '/history',
-    })
-  } else if (pathSegments[0] === 'programs') {
-    breadcrumbs.push({
-      label: 'Programs',
-      path: '/programs',
     })
   } else if (pathSegments[0] === 'exercises') {
     breadcrumbs.push({

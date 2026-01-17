@@ -4,7 +4,8 @@
  * Centralized export file for all page components
  */
 
-export { HomePage } from './HomePage'
+export { DashboardPage } from './DashboardPage'
+export { ProgramDetailPage } from './ProgramDetailPage'
 export { WorkoutPage } from './WorkoutPage'
 export { HistoryPage } from './HistoryPage'
 export { ProgramsPage } from './ProgramsPage'
