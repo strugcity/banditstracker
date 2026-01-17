@@ -9,17 +9,19 @@ import {
   Spinner,
   EmptyState,
 } from '@/components/common'
-import { HomePage, WorkoutPage } from '@/pages'
+import { Layout } from '@/components/layout'
+import { HomePage, WorkoutPage, HistoryPage, ProgramsPage, ExercisesPage } from '@/pages'
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/workout/:workoutId" element={<WorkoutPage />} />
-        <Route path="/components-test" element={<ComponentsTestPage />} />
-      </Routes>
-    </div>
+    <Routes>
+      <Route path="/" element={<Layout><HomePage /></Layout>} />
+      <Route path="/workout/:workoutId" element={<Layout><WorkoutPage /></Layout>} />
+      <Route path="/history" element={<Layout><HistoryPage /></Layout>} />
+      <Route path="/programs" element={<Layout><ProgramsPage /></Layout>} />
+      <Route path="/exercises" element={<Layout><ExercisesPage /></Layout>} />
+      <Route path="/components-test" element={<Layout><ComponentsTestPage /></Layout>} />
+    </Routes>
   )
 }
 
