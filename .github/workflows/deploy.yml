@@ -1,0 +1,33 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+      # Deployment step - update with your deployment platform
+      # Example for Vercel, Netlify, or other platforms
+      - name: Deploy
+        run: echo "Add your deployment command here"
+        # Example for Vercel:
+        # - uses: amondnet/vercel-action@v25
+        #   with:
+        #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        #     vercel-org-id: ${{ secrets.ORG_ID }}
+        #     vercel-project-id: ${{ secrets.PROJECT_ID }}
+        #     vercel-args: '--prod'

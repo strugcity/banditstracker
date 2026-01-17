@@ -1,0 +1,50 @@
+name: General Feedback
+description: Share general feedback or suggestions
+title: "[Feedback]: "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We'd love to hear your feedback!
+
+  - type: dropdown
+    id: feedback-type
+    attributes:
+      label: Feedback Type
+      description: What type of feedback are you providing?
+      options:
+        - User Experience
+        - Performance
+        - Design
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: feedback-details
+    attributes:
+      label: Feedback Details
+      description: Please share your feedback
+      placeholder: Tell us what you think!
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestions
+    attributes:
+      label: Suggestions for Improvement
+      description: How could we improve?
+
+  - type: dropdown
+    id: satisfaction
+    attributes:
+      label: Overall Satisfaction
+      description: How satisfied are you with the app?
+      options:
+        - Very Satisfied
+        - Satisfied
+        - Neutral
+        - Dissatisfied
+        - Very Dissatisfied
