@@ -14,6 +14,7 @@
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "validate-types": "tsx scripts/validate-types.ts",
+    "import-videos": "tsx scripts/import-exercise-videos.ts",
     "qa": "npm run type-check && npm run test:run && npm run lint"
   },
   "dependencies": {
