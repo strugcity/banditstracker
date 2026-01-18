@@ -11,27 +11,35 @@ import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-// Load environment variables from .env.local file
+// Load environment variables from .env or .env.local file
 function loadEnvFile(): Record<string, string> {
-  try {
-    const envPath = join(process.cwd(), '.env.local')
-    const envFile = readFileSync(envPath, 'utf-8')
-    const env: Record<string, string> = {}
+  const filesToTry = ['.env.local', '.env']
 
-    envFile.split('\n').forEach(line => {
-      const match = line.match(/^([^=:#]+)=(.*)$/)
-      if (match) {
-        const key = match[1].trim()
-        const value = match[2].trim().replace(/^["']|["']$/g, '')
-        env[key] = value
-      }
-    })
+  for (const fileName of filesToTry) {
+    try {
+      const envPath = join(process.cwd(), fileName)
+      const envFile = readFileSync(envPath, 'utf-8')
+      const env: Record<string, string> = {}
 
-    return env
-  } catch (error) {
-    console.error('Warning: Could not load .env.local file')
-    return {}
+      envFile.split('\n').forEach(line => {
+        const match = line.match(/^([^=:#]+)=(.*)$/)
+        if (match) {
+          const key = match[1].trim()
+          const value = match[2].trim().replace(/^["']|["']$/g, '')
+          env[key] = value
+        }
+      })
+
+      console.log(`✅ Loaded environment from ${fileName}`)
+      return env
+    } catch (error) {
+      // Try next file
+      continue
+    }
   }
+
+  console.error('⚠️  Warning: Could not load .env.local or .env file')
+  return {}
 }
 
 const env = loadEnvFile()
@@ -615,7 +623,11 @@ async function main() {
   // Validate environment
   const supabaseUrl = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
   if (!supabaseUrl) {
-    throw new Error('Missing VITE_SUPABASE_URL in .env.local or environment variables')
+    console.error('\n❌ Error: Missing VITE_SUPABASE_URL')
+    console.error('Please ensure your .env or .env.local file contains:')
+    console.error('  VITE_SUPABASE_URL=your-supabase-url')
+    console.error('  VITE_SUPABASE_ANON_KEY=your-anon-key\n')
+    throw new Error('Missing required environment variables')
   }
 
   // 1. Fetch all exercise cards
