@@ -24,9 +24,10 @@ Imports exercise demonstration videos and instructional content from YouTube URL
 2. **Dependencies**
 
    The required dependencies are already installed:
-   - `@supabase/supabase-js`
-   - `tsx` (TypeScript executor)
-   - `dotenv` (environment variable loader)
+   - `@supabase/supabase-js` - Database client
+   - `tsx` - TypeScript executor
+
+   The script reads `.env.local` directly using Node's built-in `fs` module, so no additional packages are needed.
 
 ### Usage
 

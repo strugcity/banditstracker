@@ -8,15 +8,38 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { config } from 'dotenv'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
-// Load environment variables
-config({ path: '.env.local' })
+// Load environment variables from .env.local file
+function loadEnvFile(): Record<string, string> {
+  try {
+    const envPath = join(process.cwd(), '.env.local')
+    const envFile = readFileSync(envPath, 'utf-8')
+    const env: Record<string, string> = {}
+
+    envFile.split('\n').forEach(line => {
+      const match = line.match(/^([^=:#]+)=(.*)$/)
+      if (match) {
+        const key = match[1].trim()
+        const value = match[2].trim().replace(/^["']|["']$/g, '')
+        env[key] = value
+      }
+    })
+
+    return env
+  } catch (error) {
+    console.error('Warning: Could not load .env.local file')
+    return {}
+  }
+}
+
+const env = loadEnvFile()
 
 // Create Supabase client with service role key for admin operations
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY!
+  env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '',
+  env.SUPABASE_SERVICE_ROLE_KEY || env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || ''
 )
 
 // Type definitions
@@ -590,8 +613,9 @@ async function main() {
   console.log('=' .repeat(60))
 
   // Validate environment
-  if (!process.env.VITE_SUPABASE_URL) {
-    throw new Error('Missing VITE_SUPABASE_URL environment variable')
+  const supabaseUrl = env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+  if (!supabaseUrl) {
+    throw new Error('Missing VITE_SUPABASE_URL in .env.local or environment variables')
   }
 
   // 1. Fetch all exercise cards
