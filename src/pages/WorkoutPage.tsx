@@ -41,7 +41,7 @@ export function WorkoutPage() {
     isLoading: workoutLoading,
     error: workoutError,
   } = useQuery({
-    queryKey: ['workout', workoutId],
+    queryKey: ['workout-with-exercises', workoutId], // FIXED: Different key to avoid cache conflict with Breadcrumbs
     queryFn: () => getWorkoutWithExercises(workoutId!),
     enabled: !!workoutId,
   })
@@ -81,7 +81,7 @@ export function WorkoutPage() {
   })
 
   // Group exercises by superset
-  const groupedExercises = workout?.exercises.reduce((acc, exercise) => {
+  const groupedExercises = workout?.exercises?.reduce((acc, exercise) => {
     const group = exercise.superset_group || exercise.id
     if (!acc[group]) acc[group] = []
     acc[group].push(exercise)
@@ -89,7 +89,7 @@ export function WorkoutPage() {
   }, {} as Record<string, typeof workout.exercises>)
 
   // Calculate total sets
-  const totalSets = workout?.exercises.reduce(
+  const totalSets = workout?.exercises?.reduce(
     (sum, ex) => sum + ex.prescribed_sets.length,
     0
   ) || 0

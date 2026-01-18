@@ -130,9 +130,12 @@ export async function getWorkoutWithExercises(
 
   if (exercisesError) throw exercisesError
 
+  // Handle null/undefined exercises (return empty array instead)
+  const exercisesArray = exercises || []
+
   return {
     ...(workout as Workout),
-    exercises: (exercises as any) as (WorkoutExercise & { exercise_card: ExerciseCard })[],
+    exercises: exercisesArray as (WorkoutExercise & { exercise_card: ExerciseCard })[],
   } as WorkoutWithExercises
 }
 
