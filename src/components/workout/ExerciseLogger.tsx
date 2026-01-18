@@ -12,6 +12,7 @@
 import { useState, useEffect } from 'react'
 import type { WorkoutExercise, ExerciseCard, ExerciseLog, CreateExerciseLogInput } from '@/lib/types'
 import { Button, Input, Select } from '@/components/common'
+import { ExerciseCardModal } from './ExerciseCardModal'
 
 interface ExerciseLoggerProps {
   exercise: WorkoutExercise & { exercise_card: ExerciseCard }
@@ -39,6 +40,7 @@ export function ExerciseLogger({
     rpe: '',
   })
   const [showSuccess, setShowSuccess] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
   // Get previous log for current set
   const previousLog = previousLogs.find(log => log.set_number === currentSet)
@@ -156,12 +158,14 @@ export function ExerciseLogger({
             <p className="text-sm text-gray-600 mt-1">{exercise.notes}</p>
           )}
         </div>
-        {/* Info icon placeholder for exercise details */}
+        {/* Info icon to open exercise details modal */}
         <button
-          className="text-gray-400 hover:text-gray-600"
-          aria-label="Exercise info"
+          onClick={() => setShowModal(true)}
+          className="text-gray-400 hover:text-blue-600 transition-colors"
+          aria-label="View exercise details"
+          type="button"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </button>
@@ -274,6 +278,13 @@ export function ExerciseLogger({
           {totalSets - currentSet} {totalSets - currentSet === 1 ? 'set' : 'sets'} remaining
         </div>
       )}
+
+      {/* Exercise Details Modal */}
+      <ExerciseCardModal
+        exerciseCard={exercise_card}
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+      />
     </div>
   )
 }
