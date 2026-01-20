@@ -54,6 +54,11 @@ export interface PrescribedSet {
 // ============================================================================
 
 /**
+ * Program visibility options
+ */
+export type ProgramVisibility = 'private' | 'team' | 'public';
+
+/**
  * Training program containing multiple workouts
  * Example: "Gophers Summer 2024"
  */
@@ -68,6 +73,12 @@ export interface Program {
   season: string | null;
   /** Program description */
   description: string | null;
+  /** Owner user ID (null for legacy/global programs) */
+  owner_id: string | null;
+  /** Team ID if this is a team program */
+  team_id: string | null;
+  /** Program visibility level */
+  visibility: ProgramVisibility;
   /** Timestamp when program was created */
   created_at: string;
   /** Timestamp when program was last updated */
@@ -108,6 +119,14 @@ export interface ExerciseCard {
   name: string;
   /** Abbreviated name for mobile display */
   short_name: string | null;
+
+  // Ownership (Hybrid Model)
+  /** Owner user ID (null for global exercises) */
+  owner_id: string | null;
+  /** Team ID if this is a team exercise */
+  team_id: string | null;
+  /** Whether this is a global exercise visible to all */
+  is_global: boolean;
 
   // Video Service Integration
   /** Array of step-by-step instructions */

@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   Button,
@@ -10,18 +10,59 @@ import {
   EmptyState,
 } from '@/components/common'
 import { Layout } from '@/components/layout'
+import { ProtectedRoute, RoleGuard } from '@/components/auth'
 import { DashboardPage, ProgramDetailPage, WorkoutPage, HistoryPage, ProgramsPage, ExercisesPage } from '@/pages'
+import { LoginPage, RegisterPage, ForgotPasswordPage } from '@/pages/auth'
+import { ProfilePage } from '@/pages/ProfilePage'
+import { JoinTeamPage } from '@/pages/JoinTeamPage'
+import { VideoReviewPage } from '@/pages/admin/VideoReviewPage'
+import { TeamDashboardPage } from '@/pages/team/TeamDashboardPage'
+import { TeamMembersPage } from '@/pages/team/TeamMembersPage'
+import { TeamAthletesPage } from '@/pages/team/TeamAthletesPage'
+import { AthleteDetailPage } from '@/pages/team/AthleteDetailPage'
+import { AdminDashboardPage } from '@/pages/admin/AdminDashboardPage'
+import { AdminTeamsPage } from '@/pages/admin/AdminTeamsPage'
+import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout><DashboardPage /></Layout>} />
-      <Route path="/programs" element={<Layout><ProgramsPage /></Layout>} />
-      <Route path="/programs/:programId" element={<Layout><ProgramDetailPage /></Layout>} />
-      <Route path="/workout/:workoutId" element={<Layout><WorkoutPage /></Layout>} />
-      <Route path="/history" element={<Layout><HistoryPage /></Layout>} />
-      <Route path="/exercises" element={<Layout><ExercisesPage /></Layout>} />
-      <Route path="/components-test" element={<Layout><ComponentsTestPage /></Layout>} />
+      {/* Public routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+      {/* Protected routes - any authenticated user */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<Layout><DashboardPage /></Layout>} />
+        <Route path="/programs" element={<Layout><ProgramsPage /></Layout>} />
+        <Route path="/programs/:programId" element={<Layout><ProgramDetailPage /></Layout>} />
+        <Route path="/workout/:workoutId" element={<Layout><WorkoutPage /></Layout>} />
+        <Route path="/history" element={<Layout><HistoryPage /></Layout>} />
+        <Route path="/exercises" element={<Layout><ExercisesPage /></Layout>} />
+        <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
+        <Route path="/join-team" element={<Layout><JoinTeamPage /></Layout>} />
+        <Route path="/components-test" element={<Layout><ComponentsTestPage /></Layout>} />
+
+        {/* Team Admin routes */}
+        <Route element={<RoleGuard requiredRole="team_admin" />}>
+          <Route path="/team/:teamId" element={<Layout><TeamDashboardPage /></Layout>} />
+          <Route path="/team/:teamId/members" element={<Layout><TeamMembersPage /></Layout>} />
+          <Route path="/team/:teamId/athletes" element={<Layout><TeamAthletesPage /></Layout>} />
+          <Route path="/team/:teamId/athletes/:athleteId" element={<Layout><AthleteDetailPage /></Layout>} />
+        </Route>
+
+        {/* Global Admin routes */}
+        <Route element={<RoleGuard requiredRole="global_admin" />}>
+          <Route path="/admin" element={<Layout><AdminDashboardPage /></Layout>} />
+          <Route path="/admin/teams" element={<Layout><AdminTeamsPage /></Layout>} />
+          <Route path="/admin/users" element={<Layout><AdminUsersPage /></Layout>} />
+          <Route path="/admin/video-review/:sessionId" element={<Layout><VideoReviewPage /></Layout>} />
+        </Route>
+      </Route>
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

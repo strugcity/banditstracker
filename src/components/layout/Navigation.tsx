@@ -1,16 +1,20 @@
 /**
  * Navigation Component
  *
- * Main navigation bar with mobile menu support
+ * Main navigation bar with mobile menu support and role-based items.
  * Features:
  * - Sticky header with app branding
  * - Mobile hamburger menu
  * - Desktop horizontal navigation
  * - Active link highlighting
+ * - User menu with profile/logout
+ * - Team admin and global admin links
  */
 
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '@/hooks/useAuth'
+import { UserMenu } from '@/components/auth/UserMenu'
 
 interface NavLinkProps {
   to: string
@@ -20,7 +24,7 @@ interface NavLinkProps {
 
 function NavLink({ to, children, onClick }: NavLinkProps) {
   const location = useLocation()
-  const isActive = location.pathname === to
+  const isActive = location.pathname === to || location.pathname.startsWith(to + '/')
 
   return (
     <Link
@@ -39,9 +43,13 @@ function NavLink({ to, children, onClick }: NavLinkProps) {
 
 export function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, teams, isGlobalAdmin } = useAuth()
+
+  // Get teams where user is admin (for team menu)
+  const adminTeams = teams.filter((t) => t.role === 'admin')
 
   const toggleMobileMenu = () => {
-    setMobileMenuOpen(prev => !prev)
+    setMobileMenuOpen((prev) => !prev)
   }
 
   const closeMobileMenu = () => {
@@ -66,32 +74,92 @@ export function Navigation() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-1">
+          <div className="hidden md:flex items-center space-x-1">
             <NavLink to="/">Home</NavLink>
             <NavLink to="/history">History</NavLink>
             <NavLink to="/programs">Programs</NavLink>
             <NavLink to="/exercises">Exercises</NavLink>
+
+            {/* Team Admin Links */}
+            {adminTeams.length > 0 && (
+              <div className="relative group">
+                <button className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 flex items-center gap-1">
+                  Teams
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+                <div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 hidden group-hover:block">
+                  {adminTeams.map((team) => (
+                    <Link
+                      key={team.team_id}
+                      to={`/team/${team.team_id}`}
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    >
+                      {team.team_name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Global Admin Link */}
+            {isGlobalAdmin && <NavLink to="/admin">Admin</NavLink>}
+
+            {/* User Menu */}
+            {user && <UserMenu />}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={toggleMobileMenu}
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="Toggle menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? (
-              // Close icon
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              // Hamburger icon
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
+          {/* Mobile: User Avatar + Menu Button */}
+          <div className="md:hidden flex items-center gap-2">
+            {user && <UserMenu />}
+            <button
+              onClick={toggleMobileMenu}
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Toggle menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              {mobileMenuOpen ? (
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu Dropdown */}
@@ -99,17 +167,51 @@ export function Navigation() {
           <div className="md:hidden py-4 border-t border-gray-200">
             <div className="space-y-1">
               <NavLink to="/" onClick={closeMobileMenu}>
-                🏠 Home
+                Home
               </NavLink>
               <NavLink to="/history" onClick={closeMobileMenu}>
-                📊 History
+                History
               </NavLink>
               <NavLink to="/programs" onClick={closeMobileMenu}>
-                📋 Programs
+                Programs
               </NavLink>
               <NavLink to="/exercises" onClick={closeMobileMenu}>
-                💪 Exercises
+                Exercises
               </NavLink>
+
+              {/* Team Admin Links (Mobile) */}
+              {adminTeams.length > 0 && (
+                <>
+                  <div className="pt-2 mt-2 border-t border-gray-200">
+                    <p className="px-4 py-1 text-xs font-semibold text-gray-500 uppercase">
+                      My Teams
+                    </p>
+                  </div>
+                  {adminTeams.map((team) => (
+                    <NavLink
+                      key={team.team_id}
+                      to={`/team/${team.team_id}`}
+                      onClick={closeMobileMenu}
+                    >
+                      {team.team_name}
+                    </NavLink>
+                  ))}
+                </>
+              )}
+
+              {/* Global Admin Link (Mobile) */}
+              {isGlobalAdmin && (
+                <>
+                  <div className="pt-2 mt-2 border-t border-gray-200">
+                    <p className="px-4 py-1 text-xs font-semibold text-gray-500 uppercase">
+                      Administration
+                    </p>
+                  </div>
+                  <NavLink to="/admin" onClick={closeMobileMenu}>
+                    Admin Dashboard
+                  </NavLink>
+                </>
+              )}
             </div>
           </div>
         )}
