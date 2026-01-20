@@ -372,3 +372,23 @@ export async function getUserTeams(): Promise<(TeamMember & { team: Team })[]> {
   if (error) throw error
   return data as (TeamMember & { team: Team })[]
 }
+
+// ============================================================================
+// ADMIN UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Fix a team by adding its creator as admin (if missing)
+ * Only callable by global admins
+ *
+ * @param teamId - Team UUID to fix
+ * @returns Success status
+ */
+export async function fixTeamCreatorMembership(teamId: string): Promise<boolean> {
+  const { data, error } = await (supabase.rpc as any)('add_team_creator_as_admin', {
+    team_uuid: teamId,
+  })
+
+  if (error) throw error
+  return data as boolean
+}

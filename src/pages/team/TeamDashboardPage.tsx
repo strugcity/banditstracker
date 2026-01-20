@@ -4,20 +4,36 @@
  * Overview page for team administrators.
  */
 
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getTeamWithMembers } from '@/services/team'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getTeamWithMembers, fixTeamCreatorMembership } from '@/services/team'
 import { Card } from '@/components/common/Card'
 import { Spinner } from '@/components/common/Spinner'
 import { Button } from '@/components/common/Button'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function TeamDashboardPage() {
   const { teamId } = useParams<{ teamId: string }>()
+  const { isGlobalAdmin } = useAuth()
+  const queryClient = useQueryClient()
+  const [fixError, setFixError] = useState<string | null>(null)
 
   const { data: team, isLoading, error } = useQuery({
     queryKey: ['team', teamId],
     queryFn: () => getTeamWithMembers(teamId!),
     enabled: !!teamId,
+  })
+
+  const fixMutation = useMutation({
+    mutationFn: () => fixTeamCreatorMembership(teamId!),
+    onSuccess: () => {
+      setFixError(null)
+      queryClient.invalidateQueries({ queryKey: ['team', teamId] })
+    },
+    onError: (err: any) => {
+      setFixError(err.message || 'Failed to fix team')
+    },
   })
 
   if (isLoading) {
@@ -63,6 +79,37 @@ export function TeamDashboardPage() {
           <p className="text-sm text-gray-500">Athletes</p>
         </Card>
       </div>
+
+      {/* Fix Team Button - shown for global admins when no members */}
+      {isGlobalAdmin && team.members.length === 0 && (
+        <Card className="p-4 mb-6 bg-yellow-50 border-yellow-200">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium text-yellow-800">No Members Found</h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                This team has no members. This may be because the team creator wasn't added automatically.
+                Click the button below to add the team creator as an admin.
+              </p>
+              {fixError && (
+                <p className="text-sm text-red-600 mt-2">{fixError}</p>
+              )}
+              <Button
+                onClick={() => fixMutation.mutate()}
+                loading={fixMutation.isPending}
+                className="mt-3"
+                size="sm"
+              >
+                Fix Team Membership
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <div className="grid gap-4 mb-6">
