@@ -88,13 +88,14 @@ export function AthleteDetailPage() {
         </Card>
         <Card className="p-4 text-center">
           <p className="text-3xl font-bold text-green-600">
-            {history && history.length > 0
-              ? Math.round(
-                  (new Date().getTime() -
-                    new Date(history[history.length - 1].completed_at!).getTime()) /
-                    (1000 * 60 * 60 * 24)
-                )
-              : '-'}
+            {(() => {
+              const lastSession = history?.[history.length - 1]
+              if (!lastSession?.completed_at) return '-'
+              return Math.round(
+                (new Date().getTime() - new Date(lastSession.completed_at).getTime()) /
+                  (1000 * 60 * 60 * 24)
+              )
+            })()}
           </p>
           <p className="text-sm text-gray-500">Days Since First</p>
         </Card>

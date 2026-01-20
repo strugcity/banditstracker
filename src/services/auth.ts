@@ -161,8 +161,8 @@ export async function updateProfile(updates: UpdateProfileInput): Promise<Profil
 
   if (!user) throw new Error('Not authenticated')
 
-  const { data, error } = await supabase
-    .from('profiles')
+  const { data, error } = await (supabase
+    .from('profiles') as any)
     .update(updates)
     .eq('id', user.id)
     .select()
@@ -202,8 +202,8 @@ export async function searchProfiles(query: string, limit: number = 10): Promise
  * @throws Error if not authorized or update fails
  */
 export async function setGlobalAdmin(userId: string, isAdmin: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('profiles')
+  const { error } = await (supabase
+    .from('profiles') as any)
     .update({ is_global_admin: isAdmin })
     .eq('id', userId)
 

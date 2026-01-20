@@ -70,10 +70,11 @@ export function VideoReviewPage() {
         if (error) throw error
         if (!data) throw new Error('Session not found')
 
-        setSession(data)
+        const sessionData = data as VideoAnalysisSession
+        setSession(sessionData)
 
         // Select all exercises by default
-        const allIndices = data.analysis_result.exercises.map((_, index) => index)
+        const allIndices = sessionData.analysis_result.exercises.map((_: unknown, index: number) => index)
         setSelectedIndices(allIndices)
       } catch (err: any) {
         console.error('Error fetching session:', err)

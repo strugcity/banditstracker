@@ -29,7 +29,7 @@ import type {
  * @throws Error if creation fails
  */
 export async function createTeam(input: CreateTeamInput): Promise<string> {
-  const { data, error } = await supabase.rpc('create_team_with_admin', {
+  const { data, error } = await (supabase.rpc as any)('create_team_with_admin', {
     team_name: input.name,
     team_description: input.description || null,
     team_sport: input.sport || null,
@@ -102,8 +102,8 @@ export async function updateTeam(
   teamId: string,
   updates: Partial<Pick<Team, 'name' | 'description' | 'sport'>>
 ): Promise<Team> {
-  const { data, error } = await supabase
-    .from('teams')
+  const { data, error } = await (supabase
+    .from('teams') as any)
     .update(updates)
     .eq('id', teamId)
     .select()
@@ -155,7 +155,7 @@ export async function getAllTeams(limit: number = 50, offset: number = 0): Promi
  * @throws Error if code invalid or join fails
  */
 export async function joinTeamByCode(inviteCode: string): Promise<string> {
-  const { data, error } = await supabase.rpc('join_team_by_invite_code', {
+  const { data, error } = await (supabase.rpc as any)('join_team_by_invite_code', {
     code: inviteCode.toUpperCase(),
   })
 
@@ -218,8 +218,8 @@ export async function updateMemberRole(
   userId: string,
   role: TeamRole
 ): Promise<void> {
-  const { error } = await supabase
-    .from('team_members')
+  const { error } = await (supabase
+    .from('team_members') as any)
     .update({ role })
     .eq('team_id', teamId)
     .eq('user_id', userId)
@@ -261,7 +261,7 @@ export async function addMember(
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { error } = await supabase.from('team_members').insert({
+  const { error } = await (supabase.from('team_members') as any).insert({
     team_id: teamId,
     user_id: userId,
     role,
@@ -283,7 +283,7 @@ export async function addMember(
  * @throws Error if regeneration fails
  */
 export async function regenerateInviteCode(teamId: string): Promise<string> {
-  const { data, error } = await supabase.rpc('regenerate_team_invite_code', {
+  const { data, error } = await (supabase.rpc as any)('regenerate_team_invite_code', {
     team_uuid: teamId,
   })
 

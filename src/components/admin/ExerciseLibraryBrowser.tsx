@@ -339,13 +339,13 @@ export function ExerciseLibraryBrowser({
 // Helper function to extract YouTube video ID
 function extractVideoId(url: string): string | null {
   const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)
-  return match ? match[1] : null
+  return match?.[1] ?? null
 }
 
 // Helper function to convert MM:SS to seconds
 function timeToSeconds(time: string): number {
   const parts = time.split(':').map(Number)
-  if (parts.length === 2) {
+  if (parts.length === 2 && parts[0] !== undefined && parts[1] !== undefined) {
     return parts[0] * 60 + parts[1]
   }
   return 0

@@ -105,7 +105,8 @@ export async function analyzeAndExtractFrames(
       .eq('id', exercise.id)
       .single()
 
-    if (error || !exerciseCard?.screenshot_timestamps) {
+    const timestamps = (exerciseCard as any)?.screenshot_timestamps as string[] | undefined
+    if (error || !timestamps) {
       console.warn(`No timestamps found for exercise ${exercise.name}`)
       continue
     }
@@ -113,7 +114,7 @@ export async function analyzeAndExtractFrames(
     try {
       const result = await extractFrames(
         videoUrl,
-        exerciseCard.screenshot_timestamps as string[],
+        timestamps,
         exercise.id,
         extractionMethod
       )
@@ -229,8 +230,8 @@ export async function updateExerciseVideo(
     screenshot_urls?: string[]
   }
 ): Promise<ExerciseCardWithVideo> {
-  const { data, error } = await supabase
-    .from('exercise_cards')
+  const { data, error } = await (supabase
+    .from('exercise_cards') as any)
     .update(updates)
     .eq('id', exerciseId)
     .select()
@@ -259,7 +260,7 @@ export function validateYouTubeUrl(url: string): boolean {
  */
 export function extractYouTubeVideoId(url: string): string | null {
   const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)
-  return match ? match[1] : null
+  return match?.[1] ?? null
 }
 
 /**
