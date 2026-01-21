@@ -3,6 +3,29 @@
  *
  * Restricts access to routes based on user role.
  * Use within ProtectedRoute to add role-based access control.
+ *
+ * ⚠️ SECURITY NOTICE - CLIENT-SIDE ONLY (UX):
+ * ============================================
+ * This component provides USER EXPERIENCE protection only. It prevents users
+ * from seeing UI they shouldn't access, but does NOT provide security.
+ *
+ * REAL SECURITY is enforced by:
+ * 1. **Supabase Row Level Security (RLS) Policies** - Server-side database policies
+ *    that prevent unauthorized data access regardless of client-side code
+ * 2. **Supabase Auth** - Session validation and user authentication
+ *
+ * A malicious user can:
+ * - Modify React state to bypass this component
+ * - Directly call Supabase queries from browser console
+ * - Make API requests outside of the UI
+ *
+ * However, RLS policies WILL BLOCK unauthorized data access in all cases.
+ *
+ * DEFENSE IN DEPTH:
+ * - Client-side guards (this component) = UX layer (prevent confusion)
+ * - RLS policies = Security layer (prevent actual data breaches)
+ *
+ * See: supabase/migrations/ for RLS policy implementations
  */
 
 import { Navigate, Outlet, useParams } from 'react-router-dom'
