@@ -136,7 +136,7 @@ export async function getWorkoutWithExercises(
         exercise_type,
         tracks_weight,
         tracks_reps,
-        tracks_time,
+        tracks_duration,
         tracks_distance,
         default_rest_seconds
       )
@@ -248,7 +248,7 @@ export async function getWorkoutHistory(
     .from('workout_sessions')
     .select(`
       *,
-      workout:workouts(id, name, description, program_id, workout_order)
+      workout:workouts(id, name, notes, program_id, workout_order)
     `)
     .eq('athlete_id', athleteId)
     .eq('status', 'completed')
