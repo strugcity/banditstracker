@@ -23,6 +23,7 @@ import {
 import type { CreateExerciseLogInput, ExerciseLog } from '@/lib/types'
 import { Button, Card, Spinner, EmptyState } from '@/components/common'
 import { ExerciseLogger } from '@/components/workout/ExerciseLogger'
+import { useAuth } from '@/hooks/useAuth'
 
 type WorkoutState = 'not_started' | 'in_progress' | 'completed'
 
@@ -30,6 +31,7 @@ export function WorkoutPage() {
   const { workoutId } = useParams<{ workoutId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   const [workoutState, setWorkoutState] = useState<WorkoutState>('not_started')
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -48,14 +50,20 @@ export function WorkoutPage() {
 
   // Fetch previous session logs
   const { data: previousLogs = [] } = useQuery({
-    queryKey: ['previous-session', workoutId],
-    queryFn: () => getPreviousSessionLogs(workoutId!),
-    enabled: !!workoutId,
+    queryKey: ['previous-session', workoutId, user?.id],
+    queryFn: () => {
+      if (!user) throw new Error('User not authenticated')
+      return getPreviousSessionLogs(workoutId!, user.id)
+    },
+    enabled: !!workoutId && !!user,
   })
 
   // Start workout session mutation
   const startSessionMutation = useMutation({
-    mutationFn: () => createWorkoutSession(workoutId!),
+    mutationFn: () => {
+      if (!user) throw new Error('User not authenticated')
+      return createWorkoutSession(workoutId!, user.id)
+    },
     onSuccess: (session) => {
       setSessionId(session.id)
       setWorkoutState('in_progress')
