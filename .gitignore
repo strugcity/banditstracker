@@ -42,3 +42,9 @@ coverage
 .vercel
 .turbo
 .env*.local
+
+# Deployment scripts (may contain secrets)
+deploy*.ps1
+deploy*.sh
+*.deploy.ps1
+*.deploy.sh
