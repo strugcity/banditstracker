@@ -23,6 +23,7 @@ import {
 import type { CreateExerciseLogInput, ExerciseLog } from '@/lib/types'
 import { Button, Card, Spinner, EmptyState } from '@/components/common'
 import { ExerciseLogger } from '@/components/workout/ExerciseLogger'
+import { useAuth } from '@/hooks/useAuth'
 
 type WorkoutState = 'not_started' | 'in_progress' | 'completed'
 
@@ -30,10 +31,12 @@ export function WorkoutPage() {
   const { workoutId } = useParams<{ workoutId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   const [workoutState, setWorkoutState] = useState<WorkoutState>('not_started')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [loggedSets, setLoggedSets] = useState<ExerciseLog[]>([])
+  const [startError, setStartError] = useState<string | null>(null)
 
   // Fetch workout with exercises
   const {
@@ -55,10 +58,19 @@ export function WorkoutPage() {
 
   // Start workout session mutation
   const startSessionMutation = useMutation({
-    mutationFn: () => createWorkoutSession(workoutId!),
+    mutationFn: () => createWorkoutSession(workoutId!, user?.id),
     onSuccess: (session) => {
       setSessionId(session.id)
       setWorkoutState('in_progress')
+      setStartError(null)
+    },
+    onError: (error) => {
+      console.error('Failed to start workout:', error)
+      setStartError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to start workout. Please try again.'
+      )
     },
   })
 
@@ -264,6 +276,11 @@ export function WorkoutPage() {
         {/* Start Button */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
           <div className="max-w-2xl mx-auto">
+            {startError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">{startError}</p>
+              </div>
+            )}
             <Button
               fullWidth
               size="lg"
