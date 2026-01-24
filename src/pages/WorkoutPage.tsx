@@ -51,14 +51,20 @@ export function WorkoutPage() {
 
   // Fetch previous session logs
   const { data: previousLogs = [] } = useQuery({
-    queryKey: ['previous-session', workoutId],
-    queryFn: () => getPreviousSessionLogs(workoutId!),
-    enabled: !!workoutId,
+    queryKey: ['previous-session', workoutId, user?.id],
+    queryFn: () => {
+      if (!user) throw new Error('User not authenticated')
+      return getPreviousSessionLogs(workoutId!, user.id)
+    },
+    enabled: !!workoutId && !!user,
   })
 
   // Start workout session mutation
   const startSessionMutation = useMutation({
-    mutationFn: () => createWorkoutSession(workoutId!, user?.id),
+    mutationFn: () => {
+      if (!user) throw new Error('User not authenticated')
+      return createWorkoutSession(workoutId!, user.id)
+    },
     onSuccess: (session) => {
       setSessionId(session.id)
       setWorkoutState('in_progress')

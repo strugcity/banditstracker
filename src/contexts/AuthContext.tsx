@@ -95,14 +95,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Handle auth state changes
+   *
+   * PERFORMANCE OPTIMIZATION:
+   * - Profile and teams are fetched in parallel using Promise.all
+   * - Loading state is set immediately after data fetches complete
+   * - Auth state listener avoids unnecessary re-fetches when user hasn't changed
+   *
+   * Note: The waterfall (session → profile+teams) is unavoidable because we need
+   * the user ID from the session before we can fetch profile/teams. This is the
+   * standard pattern for Supabase Auth integration.
    */
   useEffect(() => {
+    let isInitialLoad = true
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       setSession(initialSession)
       setUser(initialSession?.user ?? null)
 
       if (initialSession?.user) {
+        // Fetch profile and teams in parallel for faster initial load
         Promise.all([
           fetchProfile(initialSession.user.id),
           fetchTeams(initialSession.user.id),
@@ -114,23 +126,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         setLoading(false)
       }
+
+      isInitialLoad = false
     })
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      // Skip processing during initial load (already handled above)
+      if (isInitialLoad) return
+
+      const userChanged = user?.id !== newSession?.user?.id
+
       setSession(newSession)
       setUser(newSession?.user ?? null)
 
-      if (newSession?.user) {
+      if (newSession?.user && userChanged) {
+        // Only re-fetch if user actually changed (optimization)
         const [fetchedProfile, fetchedTeams] = await Promise.all([
           fetchProfile(newSession.user.id),
           fetchTeams(newSession.user.id),
         ])
         setProfile(fetchedProfile)
         setTeams(fetchedTeams)
-      } else {
+      } else if (!newSession?.user) {
+        // User signed out
         setProfile(null)
         setTeams([])
       }
@@ -141,7 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [fetchProfile, fetchTeams])
+  }, [fetchProfile, fetchTeams, user?.id])
 
   /**
    * Sign in with email and password

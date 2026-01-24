@@ -13,15 +13,22 @@ import { getWorkoutHistory } from '@/lib/queries'
 import type { WorkoutSession, Workout } from '@/lib/types'
 import { EmptyState, Card } from '@/components/common'
 import { SessionCard } from '@/components/history/SessionCard'
+import { useAuth } from '@/hooks/useAuth'
 
 export function HistoryPage() {
+  const { user } = useAuth()
+
   const {
     data: sessions,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['workout-history'],
-    queryFn: () => getWorkoutHistory(undefined, 50), // undefined athlete, 50 limit
+    queryKey: ['workout-history', user?.id],
+    queryFn: () => {
+      if (!user) throw new Error('User not authenticated')
+      return getWorkoutHistory(user.id, 50)
+    },
+    enabled: !!user, // Only run query if user exists
   })
 
   if (isLoading) {

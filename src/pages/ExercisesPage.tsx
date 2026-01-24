@@ -1,12 +1,14 @@
 /**
  * Exercises Page Component
  *
- * Shows exercise library with video analysis form
+ * Shows exercise library with video analysis form and staging modal.
+ * Users can analyze videos and review/edit exercises before saving.
  */
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { VideoAnalysisForm } from '@/components/admin/VideoAnalysisForm'
+import { VideoStagingModal } from '@/components/staging'
 import { Badge, Spinner } from '@/components/common'
 
 interface Exercise {
@@ -22,6 +24,8 @@ interface Exercise {
   screenshot_timestamps: string[] | null
   screenshot_urls: string[] | null
   exercise_type: string | null
+  is_new: boolean | null
+  source_session_id: string | null
   created_at: string
 }
 
@@ -30,6 +34,8 @@ export function ExercisesPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null)
+  // Staging modal state
+  const [stagingSessionId, setStagingSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchExercises()
@@ -78,9 +84,12 @@ export function ExercisesPage() {
       {showForm && (
         <div className="mb-8">
           <VideoAnalysisForm
-            onSuccess={() => {
-              // Don't hide form, let user analyze another video
-              // Just refresh the exercises list when they come back
+            onAnalysisComplete={(sessionId) => {
+              // Open the staging modal with the new session
+              setStagingSessionId(sessionId)
+            }}
+            onError={(error) => {
+              console.error('Video analysis error:', error)
             }}
           />
         </div>
@@ -113,9 +122,16 @@ export function ExercisesPage() {
                 >
                   {/* Exercise Header */}
                   <div className="mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      {exercise.name}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {exercise.name}
+                      </h3>
+                      {exercise.is_new && (
+                        <Badge className="bg-emerald-100 text-emerald-800 animate-pulse">
+                          New
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {exercise.difficulty && (
                         <Badge
@@ -204,9 +220,16 @@ export function ExercisesPage() {
           >
             {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {selectedExercise.name}
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {selectedExercise.name}
+                </h2>
+                {selectedExercise.is_new && (
+                  <Badge className="bg-emerald-100 text-emerald-800">
+                    New
+                  </Badge>
+                )}
+              </div>
               <button
                 onClick={() => setSelectedExercise(null)}
                 className="text-gray-400 hover:text-gray-600"
@@ -323,6 +346,20 @@ export function ExercisesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Video Staging Modal */}
+      {stagingSessionId && (
+        <VideoStagingModal
+          sessionId={stagingSessionId}
+          isOpen={!!stagingSessionId}
+          onClose={() => setStagingSessionId(null)}
+          onComplete={() => {
+            setStagingSessionId(null)
+            // Refresh exercises list to show newly imported exercises
+            fetchExercises()
+          }}
+        />
       )}
     </div>
   )
