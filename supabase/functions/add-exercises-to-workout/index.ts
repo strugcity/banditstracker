@@ -151,10 +151,10 @@ serve(async (req) => {
       )
     }
 
-    // Verify workout exists
+    // Verify workout exists and get program info
     const { data: workout, error: workoutError } = await supabase
       .from('workouts')
-      .select('id, name')
+      .select('id, name, program_id')
       .eq('id', workoutId)
       .single()
 
@@ -314,7 +314,9 @@ serve(async (req) => {
         added: addedCount,
         exerciseIds,
         workoutExerciseIds,
+        workoutId,
         workoutName: workout.name,
+        programId: workout.program_id,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

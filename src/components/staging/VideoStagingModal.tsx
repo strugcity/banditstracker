@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { Button, Badge } from '@/components/common'
 import { ExerciseEditorCard } from './ExerciseEditorCard'
@@ -43,6 +44,7 @@ export function VideoStagingModal({
   const [savingIndex, setSavingIndex] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [successLink, setSuccessLink] = useState<{ url: string; text: string } | null>(null)
 
   // Workout dialog state
   const [showWorkoutPicker, setShowWorkoutPicker] = useState(false)
@@ -362,10 +364,19 @@ export function VideoStagingModal({
         // Clear selection
         setSelectedIndices(new Set())
 
+        const programId = data?.programId
         setSuccessMessage(
           `Added ${data?.added || selectedIndices.size} exercises to "${workoutName}"`
         )
-        setTimeout(() => setSuccessMessage(null), 3000)
+        if (programId) {
+          setSuccessLink({ url: `/programs/${programId}`, text: 'View workout in program' })
+        } else {
+          setSuccessLink({ url: '/programs', text: 'View in Programs' })
+        }
+        setTimeout(() => {
+          setSuccessMessage(null)
+          setSuccessLink(null)
+        }, 8000)
       } catch (err) {
         console.error('Error adding exercises to workout:', err)
         setError(err instanceof Error ? err.message : 'Failed to add to workout')
@@ -562,8 +573,17 @@ export function VideoStagingModal({
           <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
             {/* Success/Error messages */}
             {successMessage && (
-              <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
-                {successMessage}
+              <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm flex items-center justify-between">
+                <span>{successMessage}</span>
+                {successLink && (
+                  <Link
+                    to={successLink.url}
+                    className="ml-3 text-green-700 underline hover:text-green-900 font-medium"
+                    onClick={() => onComplete()}
+                  >
+                    {successLink.text} →
+                  </Link>
+                )}
               </div>
             )}
             {error && (
