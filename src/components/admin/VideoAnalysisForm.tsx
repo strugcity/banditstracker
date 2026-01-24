@@ -1,58 +1,56 @@
 /**
  * Video Analysis Form Component
  *
- * Allows admins/coaches to submit YouTube URLs for AI analysis.
- * Results are saved to staging for review before importing to library.
+ * Allows users to submit YouTube URLs for AI analysis.
+ * Results open in an inline staging modal (no redirect).
+ * Enforces session limits (max 3 open sessions).
  */
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-
-interface AnalyzeVideoResponse {
-  success: boolean
-  sessionId: string
-  analysis: {
-    video_title: string
-    sport?: string
-    total_duration: string
-    exercise_count: number
-  }
-  exercises: Array<{
-    name: string
-    difficulty: string
-    equipment: string[]
-    start_time: string
-    end_time: string
-  }>
-}
+import { useStagingSessions } from '@/hooks'
+import type { AnalyzeVideoResponse, EdgeFunctionError } from '@/types/staging'
 
 interface VideoAnalysisFormProps {
-  onSuccess?: (sessionId: string) => void
+  /** Called when analysis completes with the session ID */
+  onAnalysisComplete: (sessionId: string) => void
+  /** Called when an error occurs */
   onError?: (error: string) => void
 }
 
-export function VideoAnalysisForm({ onSuccess, onError }: VideoAnalysisFormProps) {
-  const navigate = useNavigate()
+export function VideoAnalysisForm({
+  onAnalysisComplete,
+  onError,
+}: VideoAnalysisFormProps) {
+  const { openSessionCount, canCreateNewSession, sessions, refetch } =
+    useStagingSessions()
+
   const [videoUrl, setVideoUrl] = useState('')
   const [sport, setSport] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [progress, setProgress] = useState<string>('')
-  const [result, setResult] = useState<AnalyzeVideoResponse | null>(null)
   const [error, setError] = useState<string>('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!canCreateNewSession) {
+      const msg = `You have ${openSessionCount} open sessions. Please complete or discard existing sessions before creating new ones.`
+      setError(msg)
+      onError?.(msg)
+      return
+    }
+
     setIsAnalyzing(true)
     setProgress('Validating video URL...')
     setError('')
-    setResult(null)
 
     try {
       // Validate YouTube URL
-      const isValidYouTube = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]+/.test(
-        videoUrl
-      )
+      const isValidYouTube =
+        /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]+/.test(
+          videoUrl
+        )
 
       if (!isValidYouTube) {
         throw new Error(
@@ -61,50 +59,58 @@ export function VideoAnalysisForm({ onSuccess, onError }: VideoAnalysisFormProps
       }
 
       // Call analyze-video Edge Function
-      setProgress('Analyzing video with AI...')
+      setProgress('Analyzing video with AI... This may take a moment.')
 
-      // Try the function - it might be named 'analyze-video' or have a slug like 'bright-action'
-      let response = await supabase.functions.invoke<AnalyzeVideoResponse>('analyze-video', {
+      const response = await supabase.functions.invoke<
+        AnalyzeVideoResponse | EdgeFunctionError
+      >('analyze-video', {
         body: {
           videoUrl,
-          sport: sport || undefined
-        }
+          sport: sport || undefined,
+        },
       })
-
-      // If that fails, try with the slug name
-      if (response.error) {
-        console.log('Trying with bright-action slug...')
-        response = await supabase.functions.invoke<AnalyzeVideoResponse>('bright-action', {
-          body: {
-            videoUrl,
-            sport: sport || undefined
-          }
-        })
-      }
 
       const { data, error: functionError } = response
 
       if (functionError) {
-        throw new Error(`${functionError.message}. Make sure the analyze-video function is deployed.`)
+        throw new Error(
+          `${functionError.message}. Make sure the analyze-video function is deployed.`
+        )
       }
 
-      if (!data || !data.success) {
+      // Check for session limit error (429)
+      if (data && 'error' in data) {
+        const errorData = data as EdgeFunctionError
+        if (errorData.currentCount !== undefined) {
+          // Session limit reached
+          throw new Error(
+            errorData.message ||
+              `You have ${errorData.currentCount} open sessions. Maximum is ${errorData.maxAllowed}.`
+          )
+        }
+        throw new Error(errorData.error || 'Analysis failed')
+      }
+
+      const successData = data as AnalyzeVideoResponse
+
+      if (!successData || !successData.success) {
         throw new Error('Invalid response from video analysis service')
       }
 
-      setProgress('Analysis complete! Redirecting to review...')
-      setResult(data)
+      setProgress('Analysis complete! Opening review...')
 
-      // Call onSuccess callback if provided
-      onSuccess?.(data.sessionId)
+      // Clear form
+      setVideoUrl('')
+      setSport('')
 
-      // Navigate to review page after short delay
-      setTimeout(() => {
-        navigate(`/admin/video-review/${data.sessionId}`)
-      }, 1000)
+      // Refresh session count
+      refetch()
 
+      // Notify parent to open staging modal
+      onAnalysisComplete(successData.sessionId)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error occurred'
       setError(errorMessage)
       onError?.(errorMessage)
       setProgress('')
@@ -113,15 +119,69 @@ export function VideoAnalysisForm({ onSuccess, onError }: VideoAnalysisFormProps
     }
   }
 
+  // Resume existing session
+  const handleResumeSession = (sessionId: string) => {
+    onAnalysisComplete(sessionId)
+  }
+
   return (
     <div className="w-full max-w-2xl mx-auto">
+      {/* Session limit warning */}
+      {!canCreateNewSession && (
+        <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-start">
+            <svg
+              className="h-5 w-5 text-orange-500 mr-2 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+            <div>
+              <h3 className="text-orange-800 font-medium">Session Limit Reached</h3>
+              <p className="text-orange-700 text-sm mt-1">
+                You have {openSessionCount} open staging sessions (maximum 3).
+                Complete or discard existing sessions to analyze new videos.
+              </p>
+              {sessions.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm font-medium text-orange-800">
+                    Open sessions:
+                  </p>
+                  {sessions.map((session) => (
+                    <button
+                      key={session.id}
+                      onClick={() => handleResumeSession(session.id)}
+                      className="w-full text-left p-2 bg-white border border-orange-200 rounded hover:bg-orange-50 transition-colors"
+                    >
+                      <span className="font-medium text-gray-900 truncate block">
+                        {session.video_title || 'Untitled Video'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {session.analysis_result?.exercises?.length || 0} exercises
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
           Analyze Training Video
         </h2>
         <p className="text-gray-600 mb-6">
-          Submit a YouTube URL to automatically extract exercises, instructions, and coaching
-          cues using AI.
+          Submit a YouTube URL to automatically extract exercises, instructions,
+          and coaching cues using AI.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -140,7 +200,7 @@ export function VideoAnalysisForm({ onSuccess, onError }: VideoAnalysisFormProps
               onChange={(e) => setVideoUrl(e.target.value)}
               placeholder="https://youtube.com/watch?v=..."
               required
-              disabled={isAnalyzing}
+              disabled={isAnalyzing || !canCreateNewSession}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
           </div>
@@ -157,7 +217,7 @@ export function VideoAnalysisForm({ onSuccess, onError }: VideoAnalysisFormProps
               id="sport"
               value={sport}
               onChange={(e) => setSport(e.target.value)}
-              disabled={isAnalyzing}
+              disabled={isAnalyzing || !canCreateNewSession}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
               <option value="">Auto-detect</option>
@@ -172,7 +232,7 @@ export function VideoAnalysisForm({ onSuccess, onError }: VideoAnalysisFormProps
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isAnalyzing || !videoUrl}
+            disabled={isAnalyzing || !videoUrl || !canCreateNewSession}
             className="w-full bg-blue-600 text-white py-3 px-6 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             {isAnalyzing ? 'Analyzing...' : 'Analyze Video'}
@@ -232,76 +292,18 @@ export function VideoAnalysisForm({ onSuccess, onError }: VideoAnalysisFormProps
             </div>
           </div>
         )}
-
-        {/* Success Result */}
-        {result && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-md">
-            <div className="flex items-start">
-              <svg
-                className="h-5 w-5 text-green-600 mr-2 mt-0.5"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <div className="flex-1">
-                <h3 className="text-green-800 font-medium mb-2">Analysis Complete!</h3>
-                <div className="text-sm text-green-700 space-y-1">
-                  <p>
-                    <strong>Video:</strong> {result.analysis.video_title}
-                  </p>
-                  {result.analysis.sport && (
-                    <p>
-                      <strong>Sport:</strong> {result.analysis.sport}
-                    </p>
-                  )}
-                  <p>
-                    <strong>Duration:</strong> {result.analysis.total_duration}
-                  </p>
-                  <p>
-                    <strong>Exercises Found:</strong> {result.analysis.exercise_count}
-                  </p>
-                </div>
-
-                {/* Exercise List */}
-                {result.exercises.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-green-200">
-                    <h4 className="text-green-800 font-medium text-sm mb-2">
-                      Exercises Extracted:
-                    </h4>
-                    <ul className="space-y-1 text-sm">
-                      {result.exercises.map((exercise, index) => (
-                        <li key={index} className="text-green-700">
-                          • {exercise.name}{' '}
-                          <span className="text-green-600">
-                            ({exercise.difficulty})
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <p className="mt-3 text-sm text-green-700">
-                  Redirecting to review page...
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Usage Instructions */}
       <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">How it works:</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">
+          How it works:
+        </h3>
         <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
           <li>Paste a YouTube URL of a training or exercise demonstration video</li>
           <li>AI analyzes the video and extracts exercises, instructions, and tips</li>
-          <li>Review the extracted exercises and select which ones to import</li>
-          <li>Import exercises to your library to use in workout programs</li>
+          <li>Review and edit the extracted exercises in the staging area</li>
+          <li>Save exercises to your library individually or in batch</li>
         </ol>
       </div>
     </div>

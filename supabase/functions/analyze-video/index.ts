@@ -283,6 +283,57 @@ function shouldTrackDistance(name: string): boolean {
 }
 
 /**
+ * Extract user ID from authorization header
+ */
+async function getUserFromAuthHeader(
+  supabase: any,
+  authHeader: string | null
+): Promise<string | null> {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+
+  const token = authHeader.replace('Bearer ', '')
+
+  // Use the token to get the user
+  const { data: { user }, error } = await supabase.auth.getUser(token)
+
+  if (error || !user) {
+    console.log('Could not extract user from auth header:', error?.message)
+    return null
+  }
+
+  return user.id
+}
+
+/**
+ * Check if user has reached session limit (max 3 open sessions)
+ */
+async function checkSessionLimit(
+  supabase: any,
+  userId: string
+): Promise<{ allowed: boolean; currentCount: number }> {
+  const { count, error } = await supabase
+    .from('video_analysis_sessions')
+    .select('*', { count: 'exact', head: true })
+    .eq('owner_id', userId)
+    .in('status', ['pending', 'in_progress'])
+    .gt('expires_at', new Date().toISOString())
+
+  if (error) {
+    console.error('Error checking session limit:', error)
+    // Allow on error to not block users
+    return { allowed: true, currentCount: 0 }
+  }
+
+  const currentCount = count || 0
+  return {
+    allowed: currentCount < 3,
+    currentCount
+  }
+}
+
+/**
  * Main handler
  */
 serve(async (req) => {
@@ -329,15 +380,42 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-    // Initialize Supabase client
+    // Initialize Supabase client with service role for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Extract user ID from auth header (for session ownership)
+    const authHeader = req.headers.get('Authorization')
+    const userId = await getUserFromAuthHeader(supabase, authHeader)
+
+    // Check session limit if user is authenticated
+    if (userId) {
+      const { allowed, currentCount } = await checkSessionLimit(supabase, userId)
+      if (!allowed) {
+        return new Response(
+          JSON.stringify({
+            error: 'Session limit reached',
+            message: `You have ${currentCount} open staging sessions. Maximum allowed is 3.`,
+            hint: 'Complete or discard existing sessions before creating new ones.',
+            currentCount,
+            maxAllowed: 3
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+    }
 
     // Step 1: Analyze video with Gemini
     console.log(`Analyzing video: ${videoUrl}`)
     const analysis = await analyzeVideoWithGemini(videoUrl, geminiApiKey, sport)
     console.log(`Found ${analysis.exercises.length} exercises`)
 
-    // Step 2: Save to staging (video_analysis_sessions) instead of directly to exercise_cards
+    // Calculate expiry time (24 hours from now)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+
+    // Step 2: Save to staging (video_analysis_sessions) with owner and expiry
     console.log('Saving analysis to staging...')
     const { data: session, error: sessionError } = await supabase
       .from('video_analysis_sessions')
@@ -347,7 +425,10 @@ serve(async (req) => {
         sport: analysis.sport || sport,
         total_duration: analysis.total_duration,
         analysis_result: analysis,
-        status: 'pending'
+        status: 'pending',
+        owner_id: userId,
+        expires_at: expiresAt,
+        edited_exercises: {}
       })
       .select()
       .single()
@@ -355,13 +436,14 @@ serve(async (req) => {
     if (sessionError) throw sessionError
     if (!session) throw new Error('Failed to create analysis session')
 
-    console.log(`Created staging session: ${session.id}`)
+    console.log(`Created staging session: ${session.id} (owner: ${userId || 'anonymous'}, expires: ${expiresAt})`)
 
-    // Return success response with sessionId
+    // Return success response with sessionId and expiry info
     return new Response(
       JSON.stringify({
         success: true,
         sessionId: session.id,
+        expiresAt: session.expires_at,
         analysis: {
           video_title: analysis.video_title,
           sport: analysis.sport,
