@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks'
 
 interface CreateWorkoutDialogProps {
   /** Whether the dialog is open */
@@ -22,6 +23,7 @@ export function CreateWorkoutDialog({
   onClose,
   onCreate,
 }: CreateWorkoutDialogProps) {
+  const { user } = useAuth()
   const [workoutName, setWorkoutName] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,12 +59,16 @@ export function CreateWorkoutDialog({
           .insert({
             name: 'Unassigned',
             description: 'Workouts not yet assigned to a program',
-            status: 'active',
+            owner_id: user?.id,
+            visibility: 'private',
           })
           .select('id')
           .single()
 
-        if (programError) throw programError
+        if (programError) {
+          console.error('Program creation error:', programError)
+          throw programError
+        }
         programId = newProgram.id
       }
 
@@ -77,14 +83,19 @@ export function CreateWorkoutDialog({
         .select('id, name')
         .single()
 
-      if (workoutError) throw workoutError
+      if (workoutError) {
+        console.error('Workout creation error:', workoutError)
+        throw workoutError
+      }
 
       // Reset form and call callback
       setWorkoutName('')
       onCreate(workout.id, workout.name)
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error creating workout:', err)
-      setError('Failed to create workout. Please try again.')
+      const errorMessage = err instanceof Error ? err.message :
+        (err as { message?: string })?.message || 'Unknown error'
+      setError(`Failed to create workout: ${errorMessage}`)
     } finally {
       setIsCreating(false)
     }
